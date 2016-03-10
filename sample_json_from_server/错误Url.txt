@@ -1,0 +1,8 @@
+
+// 错误的Url
+https://api.github.com/users/JakeWharto
+
+{
+  "message": "Not Found",
+  "documentation_url": "https://developer.github.com/v3"
+}
