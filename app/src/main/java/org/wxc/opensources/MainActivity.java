@@ -61,6 +61,8 @@ public class MainActivity extends AppCompatActivity {
 
         // test branch
 
+        // test user --> blackfrogxxoo
+
         EventBus.getDefault().register(this);
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
