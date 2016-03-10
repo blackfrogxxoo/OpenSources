@@ -1,8 +1,11 @@
 package org.wxc.opensources;
 
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Message;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.widget.SimpleCursorAdapter;
@@ -30,13 +33,15 @@ import org.greenrobot.eventbus.ThreadMode;
 import org.wxc.opensources.event.MessageEvent;
 import org.wxc.opensources.event.NetworkEvent;
 import org.wxc.opensources.event.RefreshEvent;
-import org.wxc.opensources.retrofit.SimpleService;
+import org.wxc.opensources.event.UrlEvent;
+import org.wxc.opensources.retrofit.UserModel;
 
 import java.io.IOException;
 import java.util.List;
 
 import okhttp3.OkHttpClient;
 import retrofit2.Call;
+import retrofit2.Callback;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
@@ -51,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
     private Button btnAdd;
     private DaoMaster daoMaster;
     private DaoSession daoSession;
-    private ContributorDao contributorDao;
+    private UserDao userDao;
     private Cursor cursor;
 
     @Override
@@ -68,19 +73,20 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        ListView listView = (ListView) findViewById(R.id.list_view);
+        final ListView listView = (ListView) findViewById(R.id.list_view);
         editText = (EditText) findViewById(R.id.edit_text);
         btnAdd = (Button) findViewById(R.id.btn_add);
 
         daoMaster = App.getDaoMaster();
         daoSession = App.getDaoSession();
         db = daoMaster.getDatabase();
-        contributorDao = daoSession.getContributorDao();
+        userDao = daoSession.getUserDao();
 
-        String loginColumns = ContributorDao.Properties.Login.columnName;
+
+        String loginColumns = UserDao.Properties.Login.columnName;
         String orderBy = loginColumns + " COLLATE LOCALIZED ASC";
-        cursor = db.query(contributorDao.getTablename(), contributorDao.getAllColumns(), null, null, null, null, orderBy);
-        String[] from = {loginColumns, ContributorDao.Properties.Contributions.columnName};
+        cursor = db.query(userDao.getTablename(), userDao.getAllColumns(), null, null, null, null, orderBy);
+        String[] from = {loginColumns, UserDao.Properties.HtmlUrl.columnName};
         int[] to = {android.R.id.text1, android.R.id.text2};
 
         SimpleCursorAdapter adapter = new SimpleCursorAdapter(this,
@@ -89,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
         listView.setAdapter(adapter);
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, final long id) {
+            public void onItemClick(AdapterView<?> parent, View view, final int position, final long id) {
                 new Thread() {
                     @Override
                     public void run() {
@@ -100,7 +106,8 @@ public class MainActivity extends AppCompatActivity {
                                 e.printStackTrace();
                             }
                         }
-                        EventBus.getDefault().post(new MessageEvent("remove_" + id));
+                        TextView tv = (TextView) listView.getChildAt(position).findViewById(android.R.id.text2);
+                        EventBus.getDefault().post(new UrlEvent(tv.getText().toString()));
                     }
                 }.start();
             }
@@ -119,69 +126,17 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-
-    @Subscribe(threadMode = ThreadMode.ASYNC)
-    public void initRetrofit(NetworkEvent event) {
-        String BASE_URL = "https://api.github.com";
-        Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ssZ").create();
-
-        OkHttpClient client = new OkHttpClient();
-//        client.networkInterceptors().add(new StethoInterceptor());
-
-        Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl(BASE_URL)
-                .addConverterFactory(GsonConverterFactory.create(gson))
-                .client(client)
-                .build();
-
-        SimpleService.GitHub gitHubService = retrofit.create(SimpleService.GitHub.class);
-        Call<List<SimpleService.Contributor>> call = gitHubService.contributors("square", "retrofit");
-
-//        call.enqueue(new Callback<List<SimpleService.Contributor>>() {
-//            @Override
-//            public void onResponse(Call<List<SimpleService.Contributor>> call, Response<List<SimpleService.Contributor>> response) {
-//
-//            }
-//
-//            @Override
-//            public void onFailure(Call<List<SimpleService.Contributor>> call, Throwable t) {
-//
-//            }
-//        });
-
-        try {
-            Response<List<SimpleService.Contributor>> response = call.execute();
-            Log.d(TAG, "response:" + response.body().toString());
-
-            List<SimpleService.Contributor> contributors = response.body();
-            for (SimpleService.Contributor contributor : contributors) {
-                System.out.println(contributor.login + " (" + contributor.contributions + ")");
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
-
     @Subscribe(threadMode = ThreadMode.BACKGROUND)
-    public void onDeleteEvent(MessageEvent event) {
-        if (!event.message.startsWith("remove")) {
-            return;
-        }
-        String[] message = event.message.split("_");
-        if (message.length < 2) {
-            return;
-        }
-        int id = Integer.parseInt(message[1]);
-        contributorDao.deleteByKey((long) id);
-        EventBus.getDefault().post(new RefreshEvent());
+    public void onUrlEvent(UrlEvent event) {
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setData(Uri.parse(event.url));
+        startActivity(intent);
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onEventException(SubscriberExceptionEvent event) {
 
     }
-
 
     protected void addUiListeners() {
         editText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
@@ -239,29 +194,52 @@ public class MainActivity extends AppCompatActivity {
                 .client(client)
                 .build();
 
-        SimpleService.GitHub gitHubService = retrofit.create(SimpleService.GitHub.class);
-        Call<List<SimpleService.Contributor>> call = gitHubService.contributors("square", "retrofit");
-        try {
-            Response<List<SimpleService.Contributor>> response = call.execute();
-            Log.d(TAG, "response:" + response.body().toString());
+        UserModel.ICreator userCreator = retrofit.create(UserModel.ICreator.class);
+        Call<List<UserModel>> userCall = userCreator.contributors("square", "retrofit");
 
-            List<SimpleService.Contributor> contributors = response.body();
-            for (SimpleService.Contributor contributor : contributors) {
-                System.out.println(contributor.login + " (" + contributor.contributions + ")");
+        userCall.enqueue(new Callback<List<UserModel>>() {
+            @Override
+            public void onResponse(Call<List<UserModel>> call, Response<List<UserModel>> response) {
+                List<UserModel> models = response.body();
 
-                Contributor entity = new Contributor(null, contributor.login, contributor.contributions);
-                try{
-                    contributorDao.insert(entity);
-                } catch (Exception e) {
-
+                for(UserModel model:models) {
+                    Log.i(TAG, model.toString());
+                    User user = new User(
+                            null,
+                            model.login,
+                            model.id,
+                            model.avatar_url,
+                            model.url,
+                            model.html_url,
+                            model.followers_url,
+                            model.following_url,
+                            model.gists_url,
+                            model.starred_url,
+                            model.subscriptions_url,
+                            model.organizations_url,
+                            model.repos_url,
+                            model.events_url,
+                            model.received_events_url,
+                            model.type,
+                            model.site_admin);
+                    try{
+                        userDao.insert(user);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
+
+                EventBus.getDefault().post(new RefreshEvent());
+
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
+            @Override
+            public void onFailure(Call<List<UserModel>> call, Throwable t) {
+
+            }
+        });
 
 
-        EventBus.getDefault().post(new RefreshEvent());
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)

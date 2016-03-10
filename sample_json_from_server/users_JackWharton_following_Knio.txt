@@ -1,0 +1,5 @@
+
+https://api.github.com/users/JakeWharton/following/Knio
+
+status: 204(其他为304,错误为404)
+

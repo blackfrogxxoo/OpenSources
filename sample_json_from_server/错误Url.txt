@@ -2,6 +2,8 @@
 // 错误的Url
 https://api.github.com/users/JakeWharto
 
+https://api.github.com/users/JakeWharton/following/xx
+
 {
   "message": "Not Found",
   "documentation_url": "https://developer.github.com/v3"
