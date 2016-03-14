@@ -204,24 +204,7 @@ public class MainActivity extends AppCompatActivity {
 
                 for(UserModel model:models) {
                     Log.i(TAG, model.toString());
-                    User user = new User(
-                            null,
-                            model.login,
-                            model.id,
-                            model.avatar_url,
-                            model.url,
-                            model.html_url,
-                            model.followers_url,
-                            model.following_url,
-                            model.gists_url,
-                            model.starred_url,
-                            model.subscriptions_url,
-                            model.organizations_url,
-                            model.repos_url,
-                            model.events_url,
-                            model.received_events_url,
-                            model.type,
-                            model.site_admin);
+                    User user = model.toUserEntity();
                     try{
                         userDao.insert(user);
                     } catch (Exception e) {

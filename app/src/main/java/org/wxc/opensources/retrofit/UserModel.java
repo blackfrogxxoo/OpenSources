@@ -1,5 +1,7 @@
 package org.wxc.opensources.retrofit;
 
+import org.wxc.opensources.User;
+
 import java.util.List;
 
 import retrofit2.Call;
@@ -12,7 +14,9 @@ import retrofit2.http.Path;
 public class UserModel {
     /** Not-null value. */
     public String login;
+    /** Not-null value. */
     public int id;
+    /** Not-null value. */
     public String avatar_url;
     /** Not-null value. */
     public String url;
@@ -65,5 +69,26 @@ public class UserModel {
         Call<List<UserModel>> contributors(
                 @Path("owner") String owner,
                 @Path("repo") String repo);
+    }
+    
+    public User toUserEntity(){
+        return new User(
+                null,
+                login,
+                id,
+                avatar_url,
+                url,
+                html_url,
+                followers_url,
+                following_url,
+                gists_url,
+                starred_url,
+                subscriptions_url,
+                organizations_url,
+                repos_url,
+                events_url,
+                received_events_url,
+                type,
+                site_admin);
     }
 }
