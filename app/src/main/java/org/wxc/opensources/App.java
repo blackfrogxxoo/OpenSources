@@ -1,8 +1,14 @@
 package org.wxc.opensources;
 
 import android.app.Application;
+import android.os.Environment;
 
 import com.facebook.stetho.Stetho;
+import com.nostra13.universalimageloader.cache.disc.impl.UnlimitedDiskCache;
+import com.nostra13.universalimageloader.core.ImageLoader;
+import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
+
+import java.io.File;
 
 /**
  * Created by black on 2016/3/2.
@@ -20,6 +26,12 @@ public class App extends Application {
                 .enableDumpapp(Stetho.defaultDumperPluginsProvider(this))
                 .enableWebKitInspector(Stetho.defaultInspectorModulesProvider(this))
                 .build());
+
+        ImageLoaderConfiguration configuration = new ImageLoaderConfiguration.Builder(this)
+                .diskCache(new UnlimitedDiskCache(new File(Environment.getExternalStorageDirectory().getPath() + "/OpenSources")))
+                .writeDebugLogs()
+                .build();
+        ImageLoader.getInstance().init(configuration);
     }
 
     public static App getInstance() {

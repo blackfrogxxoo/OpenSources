@@ -1,8 +1,10 @@
 package org.wxc.opensources;
 
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Message;
@@ -16,20 +18,26 @@ import android.text.TextWatcher;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.AdapterView;
+import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.nostra13.universalimageloader.core.DisplayImageOptions;
+import com.nostra13.universalimageloader.core.ImageLoader;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.SubscriberExceptionEvent;
 import org.greenrobot.eventbus.ThreadMode;
+import org.w3c.dom.Text;
 import org.wxc.opensources.event.MessageEvent;
 import org.wxc.opensources.event.NetworkEvent;
 import org.wxc.opensources.event.RefreshEvent;
@@ -86,11 +94,8 @@ public class MainActivity extends AppCompatActivity {
         String loginColumns = UserDao.Properties.Login.columnName;
         String orderBy = loginColumns + " COLLATE LOCALIZED ASC";
         cursor = db.query(userDao.getTablename(), userDao.getAllColumns(), null, null, null, null, orderBy);
-        String[] from = {loginColumns, UserDao.Properties.HtmlUrl.columnName};
-        int[] to = {android.R.id.text1, android.R.id.text2};
 
-        SimpleCursorAdapter adapter = new SimpleCursorAdapter(this,
-                android.R.layout.simple_list_item_2, cursor, from, to);
+        UserListAdapter adapter = new UserListAdapter(this);
 
         listView.setAdapter(adapter);
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -124,6 +129,80 @@ public class MainActivity extends AppCompatActivity {
         });
 
 
+    }
+
+    private class UserListAdapter extends BaseAdapter {
+
+        private final Context mContext;
+        private String[] logins;
+        private String[] avatarUrls;
+
+        private DisplayImageOptions options = new DisplayImageOptions.Builder()
+                .showImageOnLoading(R.mipmap.ic_launcher)
+                .showImageOnFail(R.mipmap.ic_launcher)
+                .cacheInMemory(true)
+                .cacheOnDisk(true)
+                .bitmapConfig(Bitmap.Config.RGB_565)
+                .build();
+
+        public UserListAdapter(Context context) {
+            this.mContext = context;
+            if(cursor != null) {
+                logins = new String[cursor.getCount()];
+                avatarUrls = new String[cursor.getCount()];
+            }
+            int i=0;
+            while(cursor.moveToNext()) {
+                logins[i] = cursor.getString(
+                        cursor.getColumnIndex(UserDao.Properties.Login.columnName));
+                avatarUrls[i] = cursor.getString(
+                        cursor.getColumnIndex(UserDao.Properties.AvatarUrl.columnName));
+                i++;
+            }
+        }
+
+        @Override
+        public int getCount() {
+            return logins.length;
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return logins[position];
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            View view = convertView;
+            ViewHolder viewHolder;
+            if(view == null) {
+                view = View.inflate(mContext, R.layout.layout_user_item, null);
+                viewHolder = new ViewHolder();
+                viewHolder.imageView = (ImageView) view.findViewById(R.id.image_view);
+                viewHolder.textView = (TextView) view.findViewById(R.id.text_view);
+                view.setTag(viewHolder);
+            } else {
+                viewHolder = (ViewHolder) view.getTag();
+            }
+
+            bindImageUrl(viewHolder.imageView, avatarUrls[position]);
+            viewHolder.textView.setText(logins[position]);
+            return view;
+        }
+
+        private void bindImageUrl(ImageView imageView, String url) {
+            ImageLoader.getInstance().displayImage(url, imageView);
+        }
+
+        class ViewHolder {
+            ImageView imageView;
+            TextView textView;
+        }
     }
 
     @Subscribe(threadMode = ThreadMode.BACKGROUND)
